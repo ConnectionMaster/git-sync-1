@@ -44,17 +44,25 @@
 #    => either add the git-sync GID or else set --root, mount a volume,
 #       and manage volume permissions to access that volume
 
-FROM {ARG_FROM}
+#############################################################################
+# First we prepare the image that we want, regardless of build layers.
+#############################################################################
+FROM {ARG_FROM} as prep
 
-RUN apt-get update \
-    && apt-get -y upgrade \
-    && apt-get -y install \
+# When building, we can pass a unique value (e.g. `date +%s`) for this arg,
+# which will force a rebuild from here (by invalidating docker's cache).
+ARG FORCE_REBUILD=0
+
+RUN apt-get -q -y update
+RUN apt-get -q -y upgrade
+RUN apt-get -q -y install --no-install-recommends \
         ca-certificates \
         coreutils \
         socat \
-        git \
         openssh-client \
-    && rm -rf /var/lib/apt/lists/*
+        git
+RUN apt-get -q -y autoremove
+RUN rm -rf /var/lib/apt/lists/*
 
 # By default we will run as this user...
 RUN echo "git-sync:x:65533:65533::/tmp:/sbin/nologin" >> /etc/passwd
@@ -71,8 +79,27 @@ RUN echo "git-sync:x:65533:git-sync" >> /etc/group
 # they use our git-sync group.  If the user needs a different group or sets
 # $GIT_SYNC_ROOT or --root, their values will override this, and we assume they
 # are handling permissions themselves.
-ENV GIT_SYNC_ROOT=/tmp/git
 RUN mkdir -m 02775 /tmp/git && chown 65533:65533 /tmp/git
+
+# When building, we can pass a hash of the licenses tree, which docker checks
+# against its cache and can force a rebuild from here.
+ARG HASH_LICENSES=0
+
+# Add third-party licenses.
+COPY .licenses/ /LICENSES/
+
+# When building, we can pass a hash of the binary, which docker checks against
+# its cache and can force a rebuild from here.
+ARG HASH_BINARY=0
+
+# Add the platform-specific binary.
+COPY bin/{ARG_OS}_{ARG_ARCH}/{ARG_BIN} /{ARG_BIN}
+
+#############################################################################
+# Now we make a "clean" final image.
+#############################################################################
+FROM scratch
+COPY --from=prep / /
 
 # Run as non-root by default.  There's simply no reason to run as root.
 USER 65533:65533
@@ -80,8 +107,9 @@ USER 65533:65533
 # Setting HOME ensures that whatever UID this ultimately runs as can write to
 # files like ~/.gitconfig.
 ENV HOME=/tmp
-
-ADD bin/{ARG_OS}_{ARG_ARCH}/{ARG_BIN} /{ARG_BIN}
-
 WORKDIR /tmp
+
+# Default values for flags.
+ENV GIT_SYNC_ROOT=/tmp/git
+
 ENTRYPOINT ["/{ARG_BIN}"]
