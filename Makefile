@@ -295,14 +295,20 @@ bin-clean:
 	rm -rf .go bin
 
 lint-golangci-lint:
-	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.0 run -v
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run -v
 
 lint-shellcheck:
+	@img="docker.io/koalaman/shellcheck-alpine:v0.9.0"; \
+	for i in `seq 1 5`; do \
+	  docker pull "$$img" && break; \
+	  echo "shellcheck image pull failed (attempt $$i), retrying..."; \
+	  sleep $$((i * 2)); \
+	done; \
 	docker run \
 	    --rm \
 	    -v `pwd`:`pwd` \
 	    -w `pwd` \
-	    docker.io/koalaman/shellcheck-alpine:v0.9.0 \
+	    "$$img" \
 	        shellcheck \
 	        $$(git ls-files ':!:vendor' '*.sh')
 

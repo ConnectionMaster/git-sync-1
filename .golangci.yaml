@@ -24,6 +24,7 @@ linters:
     - cyclop
     - depguard
     - dupl
+    - embeddedstructfieldcheck
     - err113
     - exhaustruct
     - funcorder
@@ -40,6 +41,8 @@ linters:
     - musttag
     - nestif
     - nlreturn
+    - noctx
+    - noinlineerr
     - paralleltest
     - perfsprint
     - promlinter
@@ -50,6 +53,7 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
+    - wsl_v5
 
   settings: # please keep this alphabetized
     staticcheck:
